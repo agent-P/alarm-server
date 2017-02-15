@@ -1,0 +1,56 @@
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+### javadocs ###
+doc/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### NetBeans ###
+nbproject/private/
+build/
+nbbuild/
+dist/
+nbdist/
+.nb-gradle/
+.DS_Store
+
+gradle/
+gradle_ssh_key
+gradle_ssh_key.pub
+
+.gradle/3.3/taskArtifacts/fileHashes.bin
+
+.gradle/3.3/taskArtifacts/fileSnapshots.bin
+
+.gradle/3.3/taskArtifacts/taskArtifacts.bin
+
+.gradle/3.3/taskArtifacts/taskArtifacts.lock
+
+gradlew.bat
+
+### Key Stores ###
+*.jks
+*.p12
+
+build.gradle
+
+gradlew
+
+.mvn/wrapper/maven-wrapper.jar
+
+.mvn/wrapper/maven-wrapper.properties
+
+*.gradle
