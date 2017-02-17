@@ -2,7 +2,6 @@ package spagnola.ha.alarm;
 
 import spagnola.ha.alarm.io.AlarmPanelReader;
 import spagnola.ha.alarm.properties.AlarmServerProperties;
-import spagnola.ha.alarm.service.AlarmPanelControllerService;
 import spagnola.ha.alarm.websocket.CmdTlmWebSocketHandler;
 
 import org.eclipse.jetty.server.Connector;
@@ -108,18 +107,6 @@ public class AlarmServerApplication extends SpringBootServletInitializer impleme
 	}
 	
 	/**
-	 * Create the <code>AlarmPanelControllerService</code> object that supports alarm terminal
-	 * web applications through a REST interface.
-	 * 
-	 * @return the <code>AlarmPanelControllerService</code> object that supports the REST interface
-	 */
-	@Bean
-	public AlarmPanelControllerService alarmPanelControllerService() {
-		return new AlarmPanelControllerService();
-
-	}
-	
-	/**
 	 * Create the web socket handler that interfaces to alarm terminal web applications.
 	 * 
 	 * @return the <code>CmdTlmWebSocketHandler</code> object that supports alarm terminal web apps
@@ -128,7 +115,7 @@ public class AlarmServerApplication extends SpringBootServletInitializer impleme
 	public CmdTlmWebSocketHandler cmdTlmWebSocketHandler() {
 		return new CmdTlmWebSocketHandler();
 	}
-
+	
 	/**
 	 * Create a <code>ThreadPoolTaskExecutor</code> bean to run the thread that reads from and
 	 * writes to ser2soc.

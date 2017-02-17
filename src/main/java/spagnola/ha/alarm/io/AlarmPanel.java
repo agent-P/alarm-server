@@ -8,7 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import spagnola.ha.alarm.properties.AlarmServerProperties;
+import com.fasterxml.jackson.annotation.JsonCreator;
 
 /**
  * @author Perry Spagnola
@@ -56,8 +56,7 @@ public class AlarmPanel {
     public static final int RAW_DATA_INDEX = 5;
     public static final int KEYPAD_TEXT_INDEX = 7;
     
-	@Autowired
-	public AlarmPanel(final AlarmServerProperties alarmServerProperties) {
+	public AlarmPanel() {
 	}
 	
 	
@@ -100,17 +99,17 @@ public class AlarmPanel {
         /** Derive the alarm panel state from the status characters. */
         if(bitField.charAt(0) == '1') {
             /** Found a disarmed state. Find the sub state. */
-            if(bitField.charAt(3) == '0' && bitField.charAt(5) == '1') {
-            	newAlarmState = DISARMED_TEST;
-            }
-            else if(bitField.charAt(3) == '1' && bitField.charAt(5) == '1' && bitField.charAt(8) == '1') {
+            if(bitField.charAt(8) == '1') {
             	newAlarmState = DISARMED_CHIME;
+            }
+            else if(bitField.charAt(5) == '1' && (alarmState == DISARMED || alarmState == DISARMED_TEST)) {
+            	newAlarmState = DISARMED_TEST;
             }
             else {
             	newAlarmState = DISARMED;
             }
         }
-        else {
+        else if(bitField.charAt(1) == '1' || bitField.charAt(2) == '1') {
             /** Found an armed state. Find the sub state. */
             if(bitField.charAt(2) == '1' && bitField.charAt(12) == '0') {
             	newAlarmState = ARMED_STAY;
@@ -125,6 +124,19 @@ public class AlarmPanel {
             	newAlarmState = ARMED_MAX;
             }
         }
+        else {
+        	if (bitField.charAt(0) == '0' && bitField.charAt(1) == '0' && bitField.charAt(2) == '0') {
+        		if(bitField.charAt(8) == '1' && bitField.charAt(5) == '3') {
+                	newAlarmState = DISARMED_CHIME;
+                }
+        		else if(bitField.charAt(8) == '0' && bitField.charAt(5) == '3') {
+        			newAlarmState = DISARMED_TEST;
+        		}
+        		else {
+        			newAlarmState = DISARMED;
+        		}
+        	}
+        }
 
         return newAlarmState;
 	}
@@ -133,7 +145,6 @@ public class AlarmPanel {
 	public void processConfigurationMessage(String message) {
 		logger.warn("panel configuration message: " + message);
 		logger.warn("Panel configuration messages are NOT supported");
-
 	}
 	
 	
@@ -145,6 +156,7 @@ public class AlarmPanel {
 	}
 	
 	
+	@JsonCreator
 	public String getAlarmStateString() {
 		return alarmStateStrings[alarmState];
 	}
@@ -153,5 +165,191 @@ public class AlarmPanel {
 	public boolean hasAlarmStateChanged() {
 		return alarmStateChanged;
 	}
+	
+	
+	public String getBitField() {
+		return bitField.toString();
+	}
+	
+	public char getCharAtBitField(int index) {
+		return bitField.charAt(index);
+	}
+	
+	
+	public String getNumericCode() {
+		return numericCode.toString();
+	}
+	
+	
+	public String getRawData() {
+		return rawData.toString();
+	}
 
+	
+	public String getKeypadText() {
+		return keypadText.toString();
+	}
+	
+	
+	public String getKeypadAddressMask() {
+		return rawData.substring(1, 8);
+	}
+
+	
+	public boolean isReady() {
+		if(bitField.charAt(0) == '1') {
+			return true;
+		}
+		
+		return false;
+	}
+	
+	
+	public boolean isArmedAway() {
+		if(bitField.charAt(1) == '1') {
+			return true;
+		}
+		
+		return false;
+	}
+	
+	
+	public boolean isArmedStay() {
+		if(bitField.charAt(2) == '1') {
+			return true;
+		}
+		
+		return false;
+	}
+	
+	
+	public boolean isBacklightOn() {
+		if(bitField.charAt(3) == '1') {
+			return true;
+		}
+		
+		return false;
+	}
+	
+	
+	public boolean isInProgrammingMode() {
+		if(bitField.charAt(4) == '1') {
+			return true;
+		}
+		
+		return false;
+	}
+	
+	
+	public int numberOfBeepsForMessage() {
+		return Character.getNumericValue(bitField.charAt(5));
+	}
+	
+	
+	public boolean isZoneBypassed() {
+		if(bitField.charAt(6) == '1') {
+			return true;
+		}
+		
+		return false;
+	}
+	
+	
+	public boolean isOnACPower() {
+		if(bitField.charAt(7) == '1') {
+			return true;
+		}
+		
+		return false;
+	}
+	
+	
+	public boolean isChimeEnabled() {
+		if(bitField.charAt(8) == '1') {
+			return true;
+		}
+		
+		return false;
+	}
+	
+	
+	public boolean hasAlarmOccured() {
+		if(bitField.charAt(9) == '1') {
+			return true;
+		}
+		
+		return false;
+	}
+	
+	
+	public boolean isAlarmSounding() {
+		if(bitField.charAt(10) == '1') {
+			return true;
+		}
+		
+		return false;
+	}
+	
+	
+	public boolean isBatteryLow() {
+		if(bitField.charAt(11) == '1') {
+			return true;
+		}
+		
+		return false;
+	}
+	
+	
+	public boolean isEntryDelayOff() {
+		if(bitField.charAt(12) == '1') {
+			return true;
+		}
+		
+		return false;
+	}
+	
+	
+	public boolean isAlarmFire() {
+		if(bitField.charAt(13) == '1') {
+			return true;
+		}
+		
+		return false;
+	}
+	
+	
+	public boolean hasSystemIssue() {
+		if(bitField.charAt(14) == '1') {
+			return true;
+		}
+		
+		return false;
+	}
+	
+	
+	public boolean isArmedPerimeterOnly() {
+		if(bitField.charAt(15) == '1') {
+			return true;
+		}
+		
+		return false;
+	}
+	
+	
+	public boolean isErrorReportSystemSpecific() {
+		if(bitField.charAt(16) == '1') {
+			return true;
+		}
+		
+		return false;
+	}
+	
+	
+	public boolean isAdemcoDSCModeAorD() {
+		if(bitField.charAt(17) == '1') {
+			return true;
+		}
+		
+		return false;
+	}
 }
