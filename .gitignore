@@ -54,3 +54,9 @@ gradlew
 .mvn/wrapper/maven-wrapper.properties
 
 *.gradle
+
+out/production/alarm-server/application.yml
+
+out/production/alarm-server/boot.properties
+
+out/production/alarm-server/static/index.html

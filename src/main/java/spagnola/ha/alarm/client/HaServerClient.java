@@ -11,6 +11,10 @@ import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Observable;
+import java.util.Observer;
 
 import javax.net.ssl.SSLContext;
 
@@ -20,6 +24,7 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.ssl.SSLContexts;
 import org.apache.http.ssl.TrustStrategy;
+import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
@@ -41,26 +46,32 @@ import spagnola.ha.alarm.properties.AlarmServerProperties;
  * @since 2017-02-11
  */
 @Component
-public class HaServerClient {
+public class HaServerClient implements Observer {
 
 	private static Logger logger = LoggerFactory.getLogger(HaServerClient.class);
 
 	private final URI alarmServiceUri;
 	private final String keyStoreFile;
 	private final String keyStorePassword;
-	
+
+	private boolean haRestInterfaceExists = true;
+	private Instant nextRestInterfaceRetry = Instant.now();
+
+
 	/**
 	 * Constructor which uses the application properties bean to initialize class 
 	 * variables for the URI of service to be called and the key store to support SSL.
 	 * 
-	 * @param properties the properties of the application
+	 * @param alarmServiceUri
+	 * @param keyStoreFile
+	 * @param keyStorePassword
 	 * @throws URISyntaxException building a URI properties specified URL
 	 * @throws FileNotFoundException looking for the key store file
 	 */
-	public HaServerClient(final AlarmServerProperties properties) throws URISyntaxException, FileNotFoundException {
-		alarmServiceUri = new URI(properties.getAlarmServiceUrl() + "/Alarm_VDev");
-		keyStoreFile = ResourceUtils.getFile(properties.getKeystoreFile()).getAbsolutePath();
-		keyStorePassword = properties.getKeystorePass();
+	public HaServerClient(String alarmServiceUri, String keyStoreFile, String keyStorePassword) throws URISyntaxException, FileNotFoundException {
+		this.alarmServiceUri = new URI(alarmServiceUri + "/Alarm_VDev");
+		this.keyStoreFile = ResourceUtils.getFile(keyStoreFile).getAbsolutePath();
+		this.keyStorePassword = keyStorePassword;
 	}
 	
 	
@@ -111,7 +122,48 @@ public class HaServerClient {
 		}
 
 	}
-	
+
+
+	@Override
+	public void update(Observable observable, Object object) {
+
+		logger.debug("Observer notified...");
+
+		JSONObject jsonObject = (JSONObject)object;
+		logger.debug("object: " + jsonObject.toString());
+
+		String type = jsonObject.getString("type");
+
+		if(type.equals("key-pad-message")) {
+
+			/* Reset the REST interface exists flag, if the timeout has expired. */
+			if (Instant.now().isAfter(nextRestInterfaceRetry)) {
+				haRestInterfaceExists = true;
+			}
+
+			/*
+			 * Update the HA server and any web socket clients.
+			 */
+			if (haRestInterfaceExists) {
+				/* If the REST interface exists, try to send a status message. */
+				try {
+					updateHaServer(jsonObject.getString("message"));
+				} catch (RestClientException restClientException) {
+					/* If a REST client exception is caught, disable calling the REST interface,
+					 * and set a re-enable timeout. */
+					logger.warn(restClientException.getMessage());
+					logger.warn("Disabling HA REST interface.");
+					haRestInterfaceExists = false;
+
+					/* Set the re-enable timeout to 30 seconds*/
+					nextRestInterfaceRetry = Instant.now().plus(Duration.ofSeconds(30));
+				}
+			}
+		}
+
+	}
+
+
 	/**
 	 * Get the server key store from the argument specified file name. Expects a key store
 	 * of type <code>pkcs12</code>.

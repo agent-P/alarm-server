@@ -12,6 +12,7 @@ import java.net.Socket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import spagnola.ha.alarm.properties.AlarmServerProperties;
@@ -19,117 +20,93 @@ import spagnola.ha.alarm.users.AlarmUsers;
 
 /**
  * @author spagnola
+ * @version 1.0
+ * @since 2017-03-02
  *
  */
-@Component
 public class AlarmPanelSocket {
-	
-    /** ALarm state codes. */
-    private static final String AWAY = "2";
-    private static final String OFF = "1";
-	
-	@Autowired
-	private AlarmUsers alarmUsers;
-	
+
 	private static Logger logger = LoggerFactory.getLogger(AlarmPanelSocket.class);
-	
+
 	private Socket alarmPanelSocket;
-	
+
 	private String alarmPanelHost;
 	private int alarmPanelPort;
-	
+
+	private boolean connected = false;
+
+
 	private BufferedReader in;
 	private PrintWriter out;
 
-	@Autowired
-	public AlarmPanelSocket(final AlarmServerProperties alarmServerProperties) {
-		
-		alarmPanelHost = alarmServerProperties.getPanelHost();
-		alarmPanelPort = alarmServerProperties.getPanelPort();
-		
+	public AlarmPanelSocket(String alarmPanelHost, int alarmPanelPort) {
+
+		this.alarmPanelHost = alarmPanelHost;
+		this.alarmPanelPort = alarmPanelPort;
+
+		createAlarmPanelSocket();
+	}
+
+
+	public void createAlarmPanelSocket() {
 		try {
 			logger.info("Creating alarm panel socket, host: " + alarmPanelHost + ", port: " + alarmPanelPort);
 			alarmPanelSocket = new Socket(alarmPanelHost, alarmPanelPort);
-			
-			try {
-				in = new BufferedReader(new InputStreamReader(alarmPanelSocket.getInputStream()));
+
+			in = new BufferedReader(new InputStreamReader(alarmPanelSocket.getInputStream()));
+			if(in == null) {
+				logger.error("Failed to create BufferedReader for alarm panel socket.");
+				connected = false;
 			}
-			catch(Exception exception) {
-				logger.error("Failed to create BufferedReader for alarm panel socket: " + exception.getMessage());
-			}
-			try {
+			else {
+				connected = true;
+
 				out = new PrintWriter(alarmPanelSocket.getOutputStream(), true);
+				if(out == null) {
+					logger.error("Failed to create PrintWriter for alarm panel socket.");
+					connected = false;
+				}
+				else {
+					connected = true;
+				}
 			}
-			catch(Exception exception) {
-				logger.error("Failed to create PrintWriter for alarm panel socket: " + exception.getMessage());
-			}
+
 		}
 		catch(Exception exception) {
 			logger.error("Failed to create alarm panel socket: " + exception.getMessage() + " for host: " + alarmPanelHost + " port: " + alarmPanelPort);
 		}
+
+	}
+
+
+
+	public boolean isConnected() {
+		return connected;
 	}
 	
 	
 	
-	public void send(String command) {
-		out.println(command);
+	public void transmit(String command) {
+
+		if(connected) {
+			out.println(command);
+		}
 	}
 	
 	
 	public String receive() {
 		try {
-			return in.readLine();
+			if(connected) {
+				return in.readLine();
+			}
+			else {
+				return "!socket read error";
+			}
 		} 
 		catch(IOException exception) {
 			logger.error("IO Exception on alarm panel socket read attempt: " + exception.getMessage());
 			return "!socket read error";
 		}
 	}
-	
-    /**
-     * Send a command that requires a PIN for the argument specified user.
-     *
-     * @param user the IP address of the user device.
-     * @param command the command that follows the user PIN
-     */
-    public void sendPINCommand(String user, String command) {
-        if(alarmUsers.hasPIN(user)) {
-            /** The user has a PIN. Get the PIN to send the command. */
-            String PIN = alarmUsers.getPin(user);
-            /** Send the PIN to the alarm panel. */
-            out.println(PIN);
-            /** Send the state alarm state code to the alarm panel. */
-            out.println(command);
-        }
-        else {
-            /** Else, the user has no PIN. Log the error as severe. */
-            logger.error("Command: " + command + ", attempt with no PIN from user: " + user);
-        }
-    }
-    
-    
-    /**
-     * Process an "ARM" command from a user device.
-     *
-     * @param user the IP address of the user device.
-     */
-    public void arm(String user) {
-        logger.warn("User device: " + user + ", sent an ARM command...");
-        
-        sendPINCommand(user, AWAY);
-    }
-    
- 
-    /**
-     * Process an "DISARM" command from a user device.
-     *
-     * @param user the IP address of the user device.
-     */
-    public void disarm(String user) {
-        logger.warn("User device: " + user + ", sent a DISARM command...");
-        
-        sendPINCommand(user, OFF);
-    }
-    
     
 }

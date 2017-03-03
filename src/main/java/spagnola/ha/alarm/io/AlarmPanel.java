@@ -3,12 +3,16 @@
  */
 package spagnola.ha.alarm.io;
 
+import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import spagnola.ha.alarm.users.AlarmUsers;
+
+import java.util.Observable;
+import java.util.Stack;
 
 /**
  * @author Perry Spagnola
@@ -17,12 +21,13 @@ import com.fasterxml.jackson.annotation.JsonCreator;
  *
  */
 @Component
-public class AlarmPanel {
+public class AlarmPanel extends Observable {
 	private static Logger logger = LoggerFactory.getLogger(AlarmPanel.class);
-	
-	@Autowired
-	AlarmPanelSocket alarmPanelSocket;
-	
+
+	/** ALarm command codes. */
+	private static final String AWAY = "2";
+	private static final String OFF = "1";
+
     private static final String[] alarmStateStrings = {
             "ARMED_STAY",
             "ARMED_AWAY",
@@ -55,18 +60,40 @@ public class AlarmPanel {
     public static final int NUMERIC_CODE_INDEX = 3;
     public static final int RAW_DATA_INDEX = 5;
     public static final int KEYPAD_TEXT_INDEX = 7;
-    
-	public AlarmPanel() {
+
+    private AlarmPanelXceiver alarmPanelXceiver;
+
+    private AlarmUsers alarmUsers;
+
+	/** Stack of pressed keys. Used for capturing user specific PIN during alarm state changes. */
+	private Stack<Character> keyPressedStack = new Stack<Character>();
+
+	private String currentUserDevice = null;
+
+
+	/**
+	 * Constructor
+	 *
+	 * @param panelHost
+	 * @param panelPort
+	 * @param allowedIp
+	 */
+	public AlarmPanel(String panelHost, int panelPort, String[] allowedIp) {
+
+		alarmPanelXceiver = new AlarmPanelXceiver(this, panelHost, panelPort);
+
+		alarmUsers = new AlarmUsers(allowedIp);
+
 	}
 	
 	
 	public void setKeypadMessage(String keypadMessage) {
 		
-		/** Split the <code>String</code> object argument into its components. */
+		/* Split the <code>String</code> object argument into its components. */
         String delimiters = "[,\\[\\]]";
         String tokens[] = keypadMessage.split(delimiters);
         
-        /** Clear and set the <code>StringBuffer</code> objects for the keypad message components. */
+        /* Clear and set the <code>StringBuffer</code> objects for the keypad message components. */
         bitField.setLength(0);
         bitField.append(tokens[BIT_FIELD_INDEX]);
         numericCode.setLength(0);
@@ -76,29 +103,134 @@ public class AlarmPanel {
         keypadText.setLength(0);
         keypadText.append(tokens[KEYPAD_TEXT_INDEX]);
 
-        /** Get the alarm state from the bit field of the new message. */
+        /* Get the alarm state from the bit field of the new message. */
         int newAlarmState = getAlarmStateFromBitfield();
         
-        /** If the alarm state has changed, set the flag, and update the alarm state. */
+        /* If the alarm state has changed, set the flag, and update the alarm state. */
         if(newAlarmState != alarmState) {
         	alarmStateChanged = true;
         	alarmState = newAlarmState;
-            /** Log the alarm state change. */
+            /* Log the alarm state change. */
             logger.warn("Alarm state changed to: " + getAlarmStateString());
+
+            /* Process the state change. */
+            alarmPanelStateChanged();
         }
         else {
         	alarmStateChanged = false;
         }
+
+        logger.debug("Notifying observers...");
+
+		/* Notify the observers that there is a new data string from the alarm panel.
+		   Set the Observable state to "changed", and notify the Observers. */
+		setChanged();
+
+		JSONObject jsonObject = new JSONObject();
+		jsonObject.put("type", "key-pad-message");
+		jsonObject.put("message", keypadMessage);
+		notifyObservers(jsonObject);
+
 	}
-	
-	
+
+
+	/**
+	 *
+	 */
+	public void alarmPanelStateChanged() {
+		final int CMD_SIZE = 5;
+
+		StringBuffer str = new StringBuffer(CMD_SIZE);
+		/** Pop last 5 key presses off the keyPressedStack. */
+		for(int i=0; i<CMD_SIZE; i++) {
+			if(!keyPressedStack.empty()) {
+				char key = keyPressedStack.pop();
+				logger.info("key press: " + key);
+				if(i>0) {
+					logger.info("adding key to PIN: " + key);
+					str.insert(0, key);
+				}
+			}
+		}
+		logger.info("PIN: " + str);
+
+		if(str.length() == 4) {
+			/** StringBuffer is the right length, set the PIN for the current user. */
+			alarmUsers.setPin(currentUserDevice, str.toString());
+
+			/** Notify the current user that a PIN is now stored. */
+			setChanged();
+
+			JSONObject jsonObject = new JSONObject();
+			jsonObject.put("type", "authentication-message");
+			jsonObject.put("message", "PIN");
+			notifyObservers(jsonObject);
+		}
+		else {
+			logger.warn("PIN incorrect length. PIN not set.");
+		}
+
+		/** Clean up the keyPressedStack. */
+		keyPressedStack.removeAllElements();
+
+	}
+
+
+	public void keyPress(String currentUserDevice, char key) {
+		this.currentUserDevice = currentUserDevice;
+		keyPressedStack.push(key);
+	}
+
+
+	/**
+	 * Process an "ARM" command from a user device.
+	 *
+	 * @param user the IP address of the user device.
+	 */
+	public void arm(String user) {
+		logger.warn("User device: " + user + ", sent an ARM command...");
+
+		sendPINCommand(user, AWAY);
+	}
+
+
+	/**
+	 * Process an "DISARM" command from a user device.
+	 *
+	 * @param user the IP address of the user device.
+	 */
+	public void disarm(String user) {
+		logger.warn("User device: " + user + ", sent a DISARM command...");
+
+		sendPINCommand(user, OFF);
+	}
+
+	/**
+	 * Send a command that requires a PIN for the argument specified user.
+	 *
+	 * @param user the IP address of the user device.
+	 * @param command the command that follows the user PIN
+	 */
+	public void sendPINCommand(String user, String command) {
+		if(alarmUsers.hasPIN(user)) {
+			/* The user has a PIN. Get the PIN to send the command. */
+			String PIN = alarmUsers.getPin(user);
+			/* Send the PIN and the state alarm state code to the alarm panel. */
+			alarmPanelXceiver.transmit(PIN + command);
+		}
+		else {
+			/** Else, the user has no PIN. Log the error as severe. */
+			logger.error("Command: " + command + ", attempt with no PIN from user: " + user);
+		}
+	}
+
 	private int getAlarmStateFromBitfield() {
 		
 		int newAlarmState = DISARMED;
 		
-        /** Derive the alarm panel state from the status characters. */
+        /* Derive the alarm panel state from the status characters. */
         if(bitField.charAt(0) == '1') {
-            /** Found a disarmed state. Find the sub state. */
+            /* Found a disarmed state. Find the sub state. */
             if(bitField.charAt(8) == '1') {
             	newAlarmState = DISARMED_CHIME;
             }
@@ -110,7 +242,7 @@ public class AlarmPanel {
             }
         }
         else if(bitField.charAt(1) == '1' || bitField.charAt(2) == '1') {
-            /** Found an armed state. Find the sub state. */
+            /* Found an armed state. Find the sub state. */
             if(bitField.charAt(2) == '1' && bitField.charAt(12) == '0') {
             	newAlarmState = ARMED_STAY;
             }
@@ -144,10 +276,24 @@ public class AlarmPanel {
 	
 	public void processConfigurationMessage(String message) {
 		logger.warn("panel configuration message: " + message);
-		logger.warn("Panel configuration messages are NOT supported");
+		logger.warn("Panel configuration messages are NOT supported!");
 	}
-	
-	
+
+
+	public AlarmPanelXceiver getAlarmPanelXceiver() {
+		return alarmPanelXceiver;
+	}
+
+
+	public boolean isAllowed(String ipAddress) {
+		return alarmUsers.isAllowed(ipAddress);
+	}
+
+	public boolean hasPIN(String ipAddress) {
+		return alarmUsers.hasPIN(ipAddress);
+	}
+
+
 	/**
 	 * @return the alarmState
 	 */

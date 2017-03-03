@@ -18,7 +18,6 @@ import spagnola.ha.alarm.properties.AlarmServerProperties;
  * @since 2017-02-11
  *
  */
-@Component
 public class AlarmUsers {
 	
 	private static Logger logger = LoggerFactory.getLogger(AlarmUsers.class);
@@ -27,9 +26,9 @@ public class AlarmUsers {
 	public static HashMap<String, AlarmUser> allowedUsers = new HashMap<String, AlarmUser>();
 	
 	
-	protected AlarmUsers(final AlarmServerProperties alarmServerProperties) {
+	public AlarmUsers(String[] allowedIp) {
 		
-		for(String ipString: alarmServerProperties.getAllowedIp()) {
+		for(String ipString: allowedIp) {
 			addUserForIP(ipString);
 		}
 	}

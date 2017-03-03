@@ -6,9 +6,7 @@ package spagnola.ha.alarm.websocket;
 import java.io.IOException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.Stack;
+import java.util.*;
 
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -19,28 +17,26 @@ import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
+import spagnola.ha.alarm.io.AlarmPanel;
 import spagnola.ha.alarm.io.AlarmPanelSocket;
 import spagnola.ha.alarm.users.AlarmUsers;
 
 
 /**
  * @author spagnola
+ * @version 1.0
+ * @since 2017-03-02
  *
  */
-public class CmdTlmWebSocketHandler extends TextWebSocketHandler {
+public class CmdTlmWebSocketHandler extends TextWebSocketHandler implements Observer {
 	
-	@Autowired
-	private AlarmUsers alarmUsers;
-	
-	@Autowired
 	private AlarmPanelSocket alarmPanelSocket;
 
 	private static Logger logger = LoggerFactory.getLogger(CmdTlmWebSocketHandler.class);
 	
-	private static ArrayList<WebSocketSession> sessions = new ArrayList<WebSocketSession>();
+	private static ArrayList<WebSocketSession> sessions = new ArrayList<>();
 	
-	/** Stack of pressed keys. Used for capturing user specific PIN during alarm state changes. */
-    private Stack<Character> keyPressedStack = new Stack<Character>();
+    private AlarmPanel alarmPanel;
 	
     /** Last message received from alarm panel. To broadcast immediately on connect. Initialized to null. */
     private static JSONObject lastMessage = null;
@@ -51,7 +47,8 @@ public class CmdTlmWebSocketHandler extends TextWebSocketHandler {
     private String currentUserDevice;
     
     
-	public CmdTlmWebSocketHandler() {		
+	public CmdTlmWebSocketHandler(AlarmPanel alarmPanel) {
+	    this.alarmPanel = alarmPanel;
 	}
 
 	@Override
@@ -61,14 +58,14 @@ public class CmdTlmWebSocketHandler extends TextWebSocketHandler {
 		logger.warn("Connection attempt from IP Address: " + ipAddress);
 		logger.info("Opened new session in instance " + this);
 
-		if(alarmUsers.isAllowed(ipAddress)) {
+		if(alarmPanel.isAllowed(ipAddress)) {
 			currentSession = session;
 			sessions.add(session);
 			
 				send(session, "authentication", "access granted");
 			
             /** Notify the device if it has a stored PIN. */
-            if(alarmUsers.hasPIN(ipAddress)) {
+            if(alarmPanel.hasPIN(ipAddress)) {
                 send(session, "authentication", "PIN");
                 logger.info("user: " + ipAddress + ", has a PIN.");
             }
@@ -146,8 +143,8 @@ public class CmdTlmWebSocketHandler extends TextWebSocketHandler {
                 case '9':
                 case '*':
                 case '#':
-                    keyPressedStack.push(data.charAt(0));
                     response.append("Key press: " + data.charAt(0));
+                    alarmPanel.keyPress(user, data.charAt(0));
                     break;
                 default:
                     response.append("unknown key...");
@@ -155,14 +152,13 @@ public class CmdTlmWebSocketHandler extends TextWebSocketHandler {
                     break;
             }
             send(session, user, response.toString());
-            alarmPanelSocket.send(data);
         }
         else {
             if(data.equals("ARM")) {
-            	alarmPanelSocket.arm(user);
+            	alarmPanel.arm(user);
             }
             else if(data.equals("DISARM")) {
-            	alarmPanelSocket.disarm(user);
+            	alarmPanel.disarm(user);
             }
             else {
                 logger.warn("Data: " + data + " rejected from user: " + user);
@@ -175,7 +171,8 @@ public class CmdTlmWebSocketHandler extends TextWebSocketHandler {
 			throws Exception {
 		session.close(CloseStatus.SERVER_ERROR);
 	}
-	
+
+
     /**
      * Sends the messages from the alarm controller and alarm panels to the argument
      * specified web socket.
@@ -200,6 +197,25 @@ public class CmdTlmWebSocketHandler extends TextWebSocketHandler {
 			logger.warn(exception.getMessage());
 		}
    }
+
+
+    @Override
+    public void update(Observable observable, Object object) {
+
+        logger.debug("Observer notified...");
+
+        JSONObject jsonObject = (JSONObject)object;
+        logger.debug("object: " + jsonObject.toString());
+
+        String type = jsonObject.getString("type");
+
+        if(type.equals("key-pad-message")) {
+            broadcastMessage(jsonObject.getString("type"), jsonObject.getString("message"));
+        }
+        else if(type.equals("authentication-message")) {
+            send(currentSession, jsonObject.getString("type"), jsonObject.getString("message"));
+        }
+    }
     
     
 	/**
@@ -215,43 +231,6 @@ public class CmdTlmWebSocketHandler extends TextWebSocketHandler {
 			send(sessionInstance, device, message);
 		}
 
-	}
-	
-	
-	/**
-	 * 
-	 */
-	public void alarmPanelStateChanged() {
-        final int CMD_SIZE = 5;
-        
-        StringBuffer str = new StringBuffer(CMD_SIZE);
-        /** Pop last 5 key presses off the keyPressedStack. */
-        for(int i=0; i<CMD_SIZE; i++) {
-            if(!keyPressedStack.empty()) {
-                char key = keyPressedStack.pop();
-                logger.info("key press: " + key);
-                if(i>0) {
-                    logger.info("adding key to PIN: " + key);
-                    str.insert(0, key);
-                }
-            }
-        }
-        logger.info("PIN: " + str);
-        
-        if(str.length() == 4) {
-            /** StringBuffer is the right length, set the PIN for the current user. */
-            alarmUsers.setPin(currentUserDevice, str.toString());
-            
-            /** Notify the current user that a PIN is now stored. */
-            send(currentSession, "authentication", "PIN");
-        }
-        else {
-            logger.warn("PIN incorrect length. PIN not set.");
-        }
-        
-        /** Clean up the keyPressedStack. */
-        keyPressedStack.removeAllElements();
-		
 	}
 	
 	

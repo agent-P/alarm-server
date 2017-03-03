@@ -1,37 +1,31 @@
 package spagnola.ha.alarm.service;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.hateoas.ResourceSupport;
-
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 
 import spagnola.ha.alarm.io.AlarmPanel;
 
 public class AlarmPanelBitfieldResource extends ResourceSupport {
 	
-	@JsonProperty("bit-field") private String bitField;
+	private String bitField;
 	
-	@JsonProperty("ready") private String ready;
-	@JsonProperty("armed-away") private String armedAway;
-	@JsonProperty("armed-stay") private String armedStay;
-	@JsonProperty("keypad-backlight") private String keypadBacklight;
-	@JsonProperty("programming-mode") private String programmingMode;
-	@JsonProperty("message-beeps") private String messageBeeps;
-	@JsonProperty("zone-bypassed") private String zoneBypassed;
-	@JsonProperty("ac-power") private String acPower;
-	@JsonProperty("chime") private String chime;
-	@JsonProperty("alarm-occurred") private String alarmOccurred;
-	@JsonProperty("alarm-sounding") private String alarmSounding;
-	@JsonProperty("battery") private String battery;
-	@JsonProperty("entry-delay") private String entryDelay;
-	@JsonProperty("system-issue") private String systemIssue;
+	private String ready;
+	private String armedAway;
+	private String armedStay;
+	private String keypadBacklight;
+	private String programmingMode;
+	private String messageBeeps;
+	private String zoneBypassed;
+	private String acPower;
+	private String chime;
+	private String alarmOccurred;
+	private String alarmSounding;
+	private String battery;
+	private String entryDelay;
+	private String systemIssue;
 
-	@Autowired
-	AlarmPanel alarmPanel = new AlarmPanel();
 
-	@JsonCreator
-	public AlarmPanelBitfieldResource() {
+
+	public AlarmPanelBitfieldResource(AlarmPanel alarmPanel) {
 		
 		bitField = alarmPanel.getBitField();
 		
@@ -51,4 +45,64 @@ public class AlarmPanelBitfieldResource extends ResourceSupport {
 		systemIssue = String.valueOf(alarmPanel.hasSystemIssue());
 	}
 
+
+	public String getBitField() {
+		return bitField;
+	}
+
+	public String getReady() {
+		return ready;
+	}
+
+	public String getArmedAway() {
+		return armedAway;
+	}
+
+	public String getArmedStay() {
+		return armedStay;
+	}
+
+	public String getKeypadBacklight() {
+		return keypadBacklight;
+	}
+
+	public String getProgrammingMode() {
+		return programmingMode;
+	}
+
+	public String getMessageBeeps() {
+		return messageBeeps;
+	}
+
+	public String getZoneBypassed() {
+		return zoneBypassed;
+	}
+
+	public String getAcPower() {
+		return acPower;
+	}
+
+	public String getChime() {
+		return chime;
+	}
+
+	public String getAlarmOccurred() {
+		return alarmOccurred;
+	}
+
+	public String getAlarmSounding() {
+		return alarmSounding;
+	}
+
+	public String getBattery() {
+		return battery;
+	}
+
+	public String getEntryDelay() {
+		return entryDelay;
+	}
+
+	public String getSystemIssue() {
+		return systemIssue;
+	}
 }
