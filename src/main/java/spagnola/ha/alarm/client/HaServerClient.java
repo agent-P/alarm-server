@@ -33,8 +33,6 @@ import org.springframework.util.ResourceUtils;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
-import spagnola.ha.alarm.properties.AlarmServerProperties;
-
 /**
  * Provides a mechanism for the alarm panel server to send status updates to an
  * automation server through a REST PUT using SSL (https). This implementation
@@ -53,6 +51,9 @@ public class HaServerClient implements Observer {
 	private final URI alarmServiceUri;
 	private final String keyStoreFile;
 	private final String keyStorePassword;
+	private final int connectTimeout;
+	private final int readTimeout;
+
 
 	private boolean haRestInterfaceExists = true;
 	private Instant nextRestInterfaceRetry = Instant.now();
@@ -68,10 +69,12 @@ public class HaServerClient implements Observer {
 	 * @throws URISyntaxException building a URI properties specified URL
 	 * @throws FileNotFoundException looking for the key store file
 	 */
-	public HaServerClient(String alarmServiceUri, String keyStoreFile, String keyStorePassword) throws URISyntaxException, FileNotFoundException {
+	public HaServerClient(String alarmServiceUri, String keyStoreFile, String keyStorePassword, int connectTimeout, int readTimeout) throws URISyntaxException, FileNotFoundException {
 		this.alarmServiceUri = new URI(alarmServiceUri + "/Alarm_VDev");
 		this.keyStoreFile = ResourceUtils.getFile(keyStoreFile).getAbsolutePath();
 		this.keyStorePassword = keyStorePassword;
+		this.connectTimeout = connectTimeout;
+		this.readTimeout = readTimeout;
 	}
 	
 	
@@ -210,7 +213,9 @@ public class HaServerClient implements Observer {
 		/** Create an <code>HttpComponentsClientHttpRequestFactory</code> with the SSL context. */
 		SSLConnectionSocketFactory connectionFactory = new SSLConnectionSocketFactory(sslContext, new DefaultHostnameVerifier());
 		CloseableHttpClient closeableHttpClient = HttpClients.custom().setSSLSocketFactory(connectionFactory).build();
-		HttpComponentsClientHttpRequestFactory httpRequestFactory = new HttpComponentsClientHttpRequestFactory();		
+		HttpComponentsClientHttpRequestFactory httpRequestFactory = new HttpComponentsClientHttpRequestFactory();
+		httpRequestFactory.setConnectTimeout(connectTimeout);
+		httpRequestFactory.setReadTimeout(readTimeout);
 		httpRequestFactory.setHttpClient(closeableHttpClient);
 		
 		/** Return the new <code>RestTemplate</code> object created with the <code>HttpComponentsClientHttpRequestFactory</code>. */

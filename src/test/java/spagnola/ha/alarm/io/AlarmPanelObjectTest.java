@@ -5,8 +5,10 @@ import static org.junit.Assert.*;
 import org.junit.Test;
 
 public class AlarmPanelObjectTest {
-	
-	AlarmPanel alarmPanel = new AlarmPanel("", 0);
+
+	String[] allowedList = {""};
+
+	AlarmPanel alarmPanel = new AlarmPanel("", 0, allowedList);
 	
 	private static final String DISARMED_BITFIELD_1 = "1000000100000000----"; // Disarmed - backlight off
 	private static final String DISARMED_BITFIELD_2 = "1001000100000000----"; // Disarmed - backlight on(note backlight stays on for 6 messages)

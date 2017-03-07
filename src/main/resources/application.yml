@@ -3,17 +3,17 @@ spring:
   profiles: default
 
 server.port: 8443
-server.ssl.key-store: keystore.p12
+server.ssl.key-store: localhost-keystore.p12
 server.ssl.key-store-password: localhost
 server.ssl.key-password: localhost
 
 ha:
   alarm:
     server-port : 8443
-    read-timeout : 10000
-    connect-timeout : 10000
+    read-timeout : 2000
+    connect-timeout : 2000
     alarm-service-url : https://10.0.1.52:8443/alarm-panel
-    keystore-file : keystore.p12
+    keystore-file : localhost-keystore.p12
     keystore-pass : localhost
     allowed-ip: 127.0.0.1, 127.0.0.2, 127.0.0.3
     panel-host: localhost

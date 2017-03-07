@@ -45,7 +45,10 @@ public class AlarmServerApplication extends SpringBootServletInitializer impleme
 	private String keystoreFile;
 	@Value("${ha.alarm.keystore-pass}")
 	private String keystorePassword;
-
+	@Value("${ha.alarm.connect-timeout}")
+	private int connectTimeout;
+	@Value("${ha.alarm.read-timeout}")
+	private int readTimeout;
 
 	@Autowired
 	AlarmPanel alarmPanel;
@@ -131,7 +134,7 @@ public class AlarmServerApplication extends SpringBootServletInitializer impleme
 	public HaServerClient haServerClient() {
 
 		try {
-			return new HaServerClient(alarmServiceUrl, keystoreFile, keystorePassword);
+			return new HaServerClient(alarmServiceUrl, keystoreFile, keystorePassword, connectTimeout, readTimeout);
 		}
 		catch(Exception exception) {
 			logger.error("Exception creating HaServerClient bean: " + exception.getMessage());
