@@ -2,8 +2,8 @@ package spagnola.ha.alarm;
 
 import org.springframework.beans.factory.annotation.Value;
 import spagnola.ha.alarm.io.AlarmPanel;
-import spagnola.ha.alarm.websocket.CmdTlmWebSocketHandler;
 import spagnola.ha.alarm.client.HaServerClient;
+import spagnola.ha.alarm.configuration.JettyHttp2Customizer;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
@@ -15,9 +15,9 @@ import org.springframework.boot.web.support.SpringBootServletInitializer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.util.Assert;
-import org.springframework.web.socket.config.annotation.EnableWebSocket;
-import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
-import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
+import org.springframework.boot.autoconfigure.web.ServerProperties;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import org.eclipse.jetty.servlets.PushCacheFilter;
 
 
 /**
@@ -29,9 +29,9 @@ import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry
  * @since 2017-02-11
  *
  */
-@EnableWebSocket
+//@EnableAsync
 @SpringBootApplication
-public class AlarmServerApplication extends SpringBootServletInitializer implements WebSocketConfigurer {
+public class AlarmServerApplication extends SpringBootServletInitializer { //implements WebSocketConfigurer {
 
 	@Value("${ha.alarm.panel-host}")
 	private String panelHost;
@@ -65,53 +65,30 @@ public class AlarmServerApplication extends SpringBootServletInitializer impleme
 	}
 
 	
-	/**
-	 * Customizes the Jetty embedded servlet container to use SSL with an application properties
-	 * specified key store and port.
-	 * 
-	 * @return the customized embedded servlet container, Jetty
-	 * @throws Exception any exception thrown by the customization process
-	 */
-	@Bean
-    public EmbeddedServletContainerCustomizer embeddedServletContainerCustomizer() throws Exception {
 
-        /* Customize the embedded servlet container to use Jetty with an SSL connector. */
-        EmbeddedServletContainerCustomizer embeddedServletContainerCustomizer = new EmbeddedServletContainerCustomizer() {
-            @Override
-            public void customize(ConfigurableEmbeddedServletContainer factory) {
-                Assert.state(factory instanceof JettyEmbeddedServletContainerFactory, "Use Jetty for this server");
-            }
-        };
-        
+	@Bean
+	public EmbeddedServletContainerCustomizer jettyHttp2Customizer(ServerProperties serverProperties) {
+		JettyHttp2Customizer jettyHttp2Customizer = new JettyHttp2Customizer(serverProperties);
+
         /* Start the thread pool executor for the alarm panel reader thread. */
         taskExecutor().execute(alarmPanel.getAlarmPanelXceiver());
 
         /* Add the web socket handler and HA server client as observers of the alarm panel. */
-        alarmPanel.addObserver(cmdTlmWebSocketHandler());
+//        alarmPanel.addObserver(cmdTlmWebSocketHandler());
         alarmPanel.addObserver(haServerClient());
-        
-        return embeddedServletContainerCustomizer;
-    }
 
-	/**
-	 * Register web socket handlers. Adds the <code>CmdTlmWebSocketHandler</code> object to the
-	 * web socket handler registry.
-	 */
-	@Override
-	public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-		registry.addHandler(cmdTlmWebSocketHandler(), "/alarm-socket").withSockJS();
+
+		return jettyHttp2Customizer;
 	}
-	
-	/**
-	 * Create the web socket handler that interfaces to alarm terminal web applications.
-	 * 
-	 * @return the <code>CmdTlmWebSocketHandler</code> object that supports alarm terminal web apps
-	 */
+
 	@Bean
-	public CmdTlmWebSocketHandler cmdTlmWebSocketHandler() {
-		return new CmdTlmWebSocketHandler(alarmPanel);
+	public FilterRegistrationBean pushCacheFilterRegistration() {
+		FilterRegistrationBean registration = new FilterRegistrationBean();
+		registration.setFilter(new PushCacheFilter());
+		return registration;
 	}
-	
+
+
 	/**
 	 * Create a <code>ThreadPoolTaskExecutor</code> bean to run the thread that reads from and
 	 * writes to ser2soc.

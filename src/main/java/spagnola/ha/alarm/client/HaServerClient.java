@@ -150,7 +150,7 @@ public class HaServerClient implements Observer {
 			if (haRestInterfaceExists) {
 				/* If the REST interface exists, try to send a status message. */
 				try {
-					updateHaServer(jsonObject.getString("message"));
+					updateHaServer(jsonObject.toString());
 				} catch (RestClientException restClientException) {
 					/* If a REST client exception is caught, disable calling the REST interface,
 					 * and set a re-enable timeout. */

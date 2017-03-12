@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Alarm Panel Server - Websocket Test</title>
+	<style type="text/css">
+		#connect-container {
+			float: left;
+			width: 400px
+		}
+		#connect-container div {
+			padding: 5px;
+		}
+		#console-container {
+			float: left;
+			margin-left: 15px;
+			width: 800px;
+		}
+		#console {
+			border: 1px solid #CCCCCC;
+			border-right-color: #999999;
+			border-bottom-color: #999999;
+			height: 170px;
+			overflow-y: scroll;
+			padding: 5px;
+			width: 100%;
+		}
+		#console p {
+			padding: 0;
+			margin: 0;
+		}
+	</style>
+	<script src="https://cdn.jsdelivr.net/sockjs/0.3.4/sockjs.min.js"></script>
+	<script type="text/javascript">
+
+	    const NOT_INITIALIZED = 0;
+	    const CONNECTED = 1;
+	    const REQUEST_RECEIVED = 2;
+	    const PROCESSING_REQUEST = 3;
+	    const DONE = 4;
+
+	    //var index = 0;
+
+		var xhttpReceive = new XMLHttpRequest();
+		var xhttpSend = new XMLHttpRequest();
+
+		xhttpReceive.onreadystatechange = function() {
+		    var date = new Date();
+			log("Ready State: " + this.readyState + date.toString());
+		    if (this.readyState == DONE && this.status == 200) {
+               log(this.responseText );
+               connect();
+            }
+        };
+
+		function connect() {
+			var target = document.getElementById('target').value;
+			xhttpReceive.open("GET", target, true);
+			xhttpReceive.send();
+			//index++;
+		}
+		function disconnect() {
+
+		}
+		function send() {
+		    var message = document.getElementById('message').value;
+		    xhttpSend.open("POST", message, true);
+		    xhttpSend.send();
+		}
+		function log(message) {
+			var console = document.getElementById('console');
+			var p = document.createElement('p');
+			p.style.wordWrap = 'break-word';
+			p.appendChild(document.createTextNode(message));
+			console.appendChild(p);
+			while (console.childNodes.length > 25) {
+				console.removeChild(console.firstChild);
+			}
+			console.scrollTop = console.scrollHeight;
+		}
+	</script>
+</head>
+<body>
+<noscript><h2 style="color: #ff0000">Seems your browser doesn't support Javascript! Websockets rely on Javascript being enabled. Please enable
+	Javascript and reload this page!</h2></noscript>
+<div>
+	<div id="connect-container">
+		<div>
+			<input id="target" type="text" size="40" style="width: 350px" value="/alarm-keypad"/>
+		</div>
+		<div>
+			<button id="connect" onclick="connect();">Connect</button>
+		</div>
+		<div>
+			<input id="message" type="text" size="40" style="width: 350px" value="/alarm-keypad?message="/>
+		</div>
+		<div>
+			<button id="send" onclick="send();">SEND</button>
+		</div>
+	</div>
+	<div id="console-container">
+		<div id="console"></div>
+	</div>
+</div>
+</body>
+</html>

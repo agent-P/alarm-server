@@ -128,7 +128,21 @@ public class AlarmPanel extends Observable {
 
 		JSONObject jsonObject = new JSONObject();
 		jsonObject.put("type", "key-pad-message");
-		jsonObject.put("message", keypadMessage);
+		jsonObject.put("ready", String.valueOf(isReady()));
+		jsonObject.put("armedAway", String.valueOf(isArmedAway()));
+		jsonObject.put("armedStay", String.valueOf(isArmedStay()));
+		jsonObject.put("keypadBacklight", isBacklightOn() ? "on" : "off");
+		jsonObject.put("programmingMode", String.valueOf(isInProgrammingMode()));
+		jsonObject.put("messageBeeps", Integer.toString(numberOfBeepsForMessage()));
+		jsonObject.put("zoneBypassed", String.valueOf(isZoneBypassed()));
+		jsonObject.put("acPower", isOnACPower() ? "on" : "off");
+		jsonObject.put("chime", isChimeEnabled() ? "enabled" : "disabled");
+		jsonObject.put("alarmOccurred", String.valueOf(hasAlarmOccured()));
+		jsonObject.put("alarmSounding", String.valueOf(isAlarmSounding()));
+		jsonObject.put("battery", isBatteryLow() ? "low" : "ok");
+		jsonObject.put("entryDelay", isEntryDelayOff() ? "off" : "on");
+		jsonObject.put("systemIssue", String.valueOf(hasSystemIssue()));
+
 		notifyObservers(jsonObject);
 
 	}
@@ -195,7 +209,7 @@ public class AlarmPanel extends Observable {
 
 
 	/**
-	 * Process an "DISARM" command from a user device.
+	 * Process a "DISARM" command from a user device.
 	 *
 	 * @param user the IP address of the user device.
 	 */

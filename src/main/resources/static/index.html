@@ -1,108 +1,25 @@
-<!DOCTYPE html>
-<html>
-<head>
-	<title>Alarm Panel Server - Websocket Test</title>
-	<style type="text/css">
-		#connect-container {
-			float: left;
-			width: 400px
-		}
-		#connect-container div {
-			padding: 5px;
-		}
-		#console-container {
-			float: left;
-			margin-left: 15px;
-			width: 800px;
-		}
-		#console {
-			border: 1px solid #CCCCCC;
-			border-right-color: #999999;
-			border-bottom-color: #999999;
-			height: 170px;
-			overflow-y: scroll;
-			padding: 5px;
-			width: 100%;
-		}
-		#console p {
-			padding: 0;
-			margin: 0;
-		}
-	</style>
-	<script src="https://cdn.jsdelivr.net/sockjs/0.3.4/sockjs.min.js"></script>
-	<script type="text/javascript">
-		var ws = null;
-		function setConnected(connected) {
-			document.getElementById('connect').disabled = connected;
-			document.getElementById('disconnect').disabled = !connected;
-			document.getElementById('send').disabled = !connected;
-		}
-		function connect() {
-			var target = document.getElementById('target').value;
-			ws = new SockJS(target);
-			ws.onopen = function () {
-				setConnected(true);
-				log('Info: WebSocket connected.');
-			};
-			ws.onmessage = function (event) {
-				log('Received: ' + event.data);
-			};
-			ws.onclose = function () {
-				setConnected(false);
-				log('Info: WebSocket disconnected.');
-			};
-		}
-		function disconnect() {
-			if (ws != null) {
-				ws.close();
-				ws = null;
-			}
-			setConnected(false);
-		}
-		function send() {
-			if (ws != null) {
-				var message = document.getElementById('message').value;
-				log('Sent: ' + message);
-				ws.send(message);
-			} else {
-				alert('WebSocket connection not established, please connect.');
-			}
-		}
-		function log(message) {
-			var console = document.getElementById('console');
-			var p = document.createElement('p');
-			p.style.wordWrap = 'break-word';
-			p.appendChild(document.createTextNode(message));
-			console.appendChild(p);
-			while (console.childNodes.length > 25) {
-				console.removeChild(console.firstChild);
-			}
-			console.scrollTop = console.scrollHeight;
-		}
-	</script>
-</head>
-<body>
-<noscript><h2 style="color: #ff0000">Seems your browser doesn't support Javascript! Websockets rely on Javascript being enabled. Please enable
-	Javascript and reload this page!</h2></noscript>
-<div>
-	<div id="connect-container">
-		<div>
-			<input id="target" type="text" size="40" style="width: 350px" value="/alarm-socket"/>
-		</div>
-		<div>
-			<button id="connect" onclick="connect();">Connect</button>
-			<button id="disconnect" disabled="disabled" onclick="disconnect();">Disconnect</button>
-		</div>
-		<div>
-			<textarea id="message" style="width: 350px">Test message!</textarea>
-		</div>
-		<div>
-			<button id="send" onclick="send();" disabled="disabled">SEND</button>
-		</div>
-	</div>
-	<div id="console-container">
-		<div id="console"></div>
-	</div>
-</div>
-</body>
+<html manifest="./cache.manifest">
+    
+    <head>
+        <title>LCARS Security System</title>
+        <link rel="apple-touch-icon" href="./img/apple-touch-icon.png"/>
+        <meta http-equiv="content-type" content="text/html; charset=ISO-8859-1" />
+        <meta name = "viewport" content = "width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        
+        <style>
+            @font-face {
+                font-family: "LCARS";
+                src: url(./Antonio-Light.ttf) format("truetype");
+            }
+        </style>
+        <script src="js/sockjs.min.js"></script>
+    </head>
+    
+    <body  bgcolor="#000000">
+        <script src="js/main.bundle.js"></script>
+    </body>
+    
 </html>
+
