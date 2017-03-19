@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.context.request.async.DeferredResult;
 
@@ -37,7 +38,7 @@ import org.slf4j.LoggerFactory;
 public class AlarmKeypadController  implements Observer {
     private static Logger logger = LoggerFactory.getLogger(AlarmKeypadController.class);
 
-    private final Map<DeferredResult<String>, Integer> chatRequests =	new ConcurrentHashMap<DeferredResult<String>, Integer>();
+    private final Map<DeferredResult<String>, Integer> statusRequests =	new ConcurrentHashMap<DeferredResult<String>, Integer>();
 
     AlarmPanel alarmPanel;
 
@@ -49,18 +50,48 @@ public class AlarmKeypadController  implements Observer {
 
     @RequestMapping(method=RequestMethod.GET)
     @ResponseBody
-    public DeferredResult<String> getKeypadMessage(HttpServletRequest request, HttpServletResponse response) {
-
-        logger.debug("IP address of request: " + request.getRemoteAddr());
+    public DeferredResult<String> getKeypadMessage(HttpServletRequest request, HttpServletResponse response, @RequestParam String requestType) {
 
         final DeferredResult<String> deferredResult = new DeferredResult<String>(null, Collections.emptyList());
-        this.chatRequests.put(deferredResult, 0);
+
+        JSONObject result = new JSONObject();
+
+       if(alarmPanel.isAllowed(request.getRemoteAddr())) {
+           if(requestType.equals("connect")) {
+               result.put("type", "authentication-message");
+               result.put(requestType, "authorized");
+               if(alarmPanel.hasPIN(request.getRemoteAddr())) {
+                   result.put("pin", "yes");
+               }
+               else {
+                   result.put("pin", "no");
+               }
+               response.setContentType("application/json");
+               deferredResult.setResult(result.toString());
+           }
+           else if(requestType.equals("receive")) {
+               this.statusRequests.put(deferredResult, 0);
+               response.setContentType("application/json");
+           }
+           else {
+               String errorString = "Request type: [" + requestType + "] not recognized.";
+               logger.warn(errorString);
+               deferredResult.setErrorResult(errorString);
+               response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+           }
+        }
+        else {
+            String errorString = "Device: [" + request.getRemoteAddr() + "] not authorized.";
+            logger.warn(errorString);
+            deferredResult.setErrorResult(errorString);
+            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+        }
 
         deferredResult.onCompletion(new Runnable() {
             @Override
             public void run() {
                 logger.debug("removing deferredResult..." );
-                chatRequests.remove(deferredResult);
+                statusRequests.remove(deferredResult);
             }
         });
 
@@ -70,9 +101,10 @@ public class AlarmKeypadController  implements Observer {
 
     @RequestMapping(method=RequestMethod.POST)
     @ResponseBody
-    public void postMessage(@RequestParam String message) {
+    public void postMessage(@RequestBody String message) {
 
-        logger.debug("POST: " + message);
+        JSONObject jsonObject = new JSONObject(message);
+        logger.debug("POST: " + jsonObject.toString());
 
     }
 
@@ -87,7 +119,7 @@ public class AlarmKeypadController  implements Observer {
         String type = jsonObject.getString("type");
 
         if(type.equals("key-pad-message")) {
-            for (Entry<DeferredResult<String>, Integer> entry : this.chatRequests.entrySet()) {
+            for (Entry<DeferredResult<String>, Integer> entry : this.statusRequests.entrySet()) {
                 entry.getKey().setResult(jsonObject.toString());
             }
         }

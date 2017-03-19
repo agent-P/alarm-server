@@ -24,7 +24,7 @@ import java.util.Stack;
 public class AlarmPanel extends Observable {
 	private static Logger logger = LoggerFactory.getLogger(AlarmPanel.class);
 
-	/** ALarm command codes. */
+	/** Alarm command codes. */
 	private static final String AWAY = "2";
 	private static final String OFF = "1";
 
@@ -35,7 +35,8 @@ public class AlarmPanel extends Observable {
             "ARMED_INSTANT",
             "DISARMED",
             "DISARMED_CHIME",
-            "DISARMED_TEST"
+            "DISARMED_TEST",
+			"UNKNOWN"
     };
         
     /** The alarm panel state constants */
@@ -45,9 +46,10 @@ public class AlarmPanel extends Observable {
     public static final int ARMED_INSTANT  = 3;
     public static final int DISARMED       = 4;
     public static final int DISARMED_CHIME = 5;
-    public static final int DISARMED_TEST  = 6;
+	public static final int DISARMED_TEST  = 6;
+	public static final int UNKNOWN        = 7;
 
-    private static int alarmState = DISARMED;
+    private static int alarmState = UNKNOWN;
     
     private static boolean alarmStateChanged = false;
     
@@ -142,6 +144,7 @@ public class AlarmPanel extends Observable {
 		jsonObject.put("battery", isBatteryLow() ? "low" : "ok");
 		jsonObject.put("entryDelay", isEntryDelayOff() ? "off" : "on");
 		jsonObject.put("systemIssue", String.valueOf(hasSystemIssue()));
+		jsonObject.put("keypadText", keypadText.toString());
 
 		notifyObservers(jsonObject);
 

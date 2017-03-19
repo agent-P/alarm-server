@@ -62,3 +62,7 @@ out/production/alarm-server/boot.properties
 out/production/alarm-server/static/index.html
 
 *.map
+
+out/production/alarm-server/static/js/sockjs.min.js
+
+application.yml

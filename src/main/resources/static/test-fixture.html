@@ -29,7 +29,6 @@
 			margin: 0;
 		}
 	</style>
-	<script src="https://cdn.jsdelivr.net/sockjs/0.3.4/sockjs.min.js"></script>
 	<script type="text/javascript">
 
 	    const NOT_INITIALIZED = 0;
@@ -38,33 +37,39 @@
 	    const PROCESSING_REQUEST = 3;
 	    const DONE = 4;
 
-	    //var index = 0;
+	    const KEYPAD_URL = "/alarm-keypad";
+
 
 		var xhttpReceive = new XMLHttpRequest();
 		var xhttpSend = new XMLHttpRequest();
 
 		xhttpReceive.onreadystatechange = function() {
+            console.log("ready state: " + this.readyState);
+            console.log("status: " + this.status);
 		    var date = new Date();
 			log("Ready State: " + this.readyState + date.toString());
 		    if (this.readyState == DONE && this.status == 200) {
                log(this.responseText );
-               connect();
+               receive();
             }
         };
 
 		function connect() {
-			var target = document.getElementById('target').value;
-			xhttpReceive.open("GET", target, true);
+			xhttpReceive.open("GET", KEYPAD_URL + "?requestType=connect");
 			xhttpReceive.send();
-			//index++;
+		}
+		function receive() {
+			xhttpReceive.open("GET", KEYPAD_URL + "?requestType=receive");
+			xhttpReceive.send();
 		}
 		function disconnect() {
 
 		}
 		function send() {
 		    var message = document.getElementById('message').value;
-		    xhttpSend.open("POST", message, true);
-		    xhttpSend.send();
+		    xhttpSend.open("POST", KEYPAD_URL);
+			xhttpSend.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+			xhttpSend.send(message);
 		}
 		function log(message) {
 			var console = document.getElementById('console');
@@ -91,7 +96,7 @@
 			<button id="connect" onclick="connect();">Connect</button>
 		</div>
 		<div>
-			<input id="message" type="text" size="40" style="width: 350px" value="/alarm-keypad?message="/>
+			<input id="message" type="text" size="40" style="width: 350px" value='{ "key-press" : "*"}'/>
 		</div>
 		<div>
 			<button id="send" onclick="send();">SEND</button>
