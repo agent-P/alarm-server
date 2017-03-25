@@ -193,9 +193,56 @@ public class AlarmPanel extends Observable {
 	}
 
 
+	public void handleCommandMessage(String deviceId, JSONObject jsonMessage) {
+
+
+
+		if(!jsonMessage.isNull("key-pressed")) {
+			String keyPressed = jsonMessage.getString("key-pressed");
+			if(keyPressed.length() == 1) {
+				switch (keyPressed.charAt(0)) {
+					case '0':
+					case '1':
+					case '2':
+					case '3':
+					case '4':
+					case '5':
+					case '6':
+					case '7':
+					case '8':
+					case '9':
+					case '*':
+					case '#':
+						keyPress(deviceId, keyPressed.charAt(0));
+						break;
+					default:
+						logger.warn("Unexpected data: " + keyPressed + " from user: " + deviceId);
+						break;
+				}
+			}
+		}
+		else if(!jsonMessage.isNull("command")) {
+			String command = jsonMessage.getString("command");
+			if(command.equals("ARM")) {
+				arm(deviceId);
+			}
+			else if(command.equals("DISARM")) {
+				disarm(deviceId);
+			}
+		}
+	}
+
+
+	/**
+	 * Handle individual key presses from the keypad client.
+	 * @param currentUserDevice
+	 * @param key
+	 */
 	public void keyPress(String currentUserDevice, char key) {
 		this.currentUserDevice = currentUserDevice;
 		keyPressedStack.push(key);
+
+		alarmPanelXceiver.transmit(Character.toString(key));
 	}
 
 

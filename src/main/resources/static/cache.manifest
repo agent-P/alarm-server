@@ -1,9 +1,7 @@
 CACHE MANIFEST
-
-# Version: 1.0
-
+# version 1
 CACHE:
-index.html
-js/main.bundle.js
-img/apple-touch-icon.png
-Antonio-Light.ttf
+/index.html
+/js/main.bundle.js
+/img/apple-touch-icon.png
+/Antonio-Light.ttf

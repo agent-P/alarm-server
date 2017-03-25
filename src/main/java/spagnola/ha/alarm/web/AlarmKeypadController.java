@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.context.request.async.DeferredResult;
 
 import java.util.Collections;
@@ -101,11 +102,12 @@ public class AlarmKeypadController  implements Observer {
 
     @RequestMapping(method=RequestMethod.POST)
     @ResponseBody
-    public void postMessage(@RequestBody String message) {
+    public void postMessage(HttpServletRequest request, @RequestBody String message) {
 
         JSONObject jsonObject = new JSONObject(message);
         logger.debug("POST: " + jsonObject.toString());
 
+        alarmPanel.handleCommandMessage(request.getRemoteAddr(), jsonObject);
     }
 
 

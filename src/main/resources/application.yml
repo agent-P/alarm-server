@@ -7,6 +7,10 @@ server.ssl.key-store: localhost-keystore.p12
 server.ssl.key-store-password: localhost
 server.ssl.key-password: localhost
 
+security.user.name : admin
+security.user.password : secret
+security.ignored: /index.html, /js/*.js, /img/apple-touch-icon.png, /Antonio-Light.ttf, /cache.manifest
+
 ha:
   alarm:
     server-port : 8443
@@ -15,7 +19,7 @@ ha:
     alarm-service-url : https://10.0.1.52:8443/alarm-panel
     keystore-file : localhost-keystore.p12
     keystore-pass : localhost
-    allowed-ip: 127.0.0.1, 127.0.0.2, 127.0.0.3
+    allowed-ip: 127.0.0.4, 127.0.0.2, 127.0.0.3
     panel-host: localhost
     panel-port: 10000
 

@@ -48,12 +48,15 @@ public class HaServerClient implements Observer {
 
 	private static Logger logger = LoggerFactory.getLogger(HaServerClient.class);
 
+	private boolean interfaceOn = false;
+
 	private final URI alarmServiceUri;
 	private final String keyStoreFile;
 	private final String keyStorePassword;
 	private final int connectTimeout;
 	private final int readTimeout;
 
+	private RestTemplate restTemplate = null;
 
 	private boolean haRestInterfaceExists = true;
 	private Instant nextRestInterfaceRetry = Instant.now();
@@ -70,13 +73,47 @@ public class HaServerClient implements Observer {
 	 * @throws FileNotFoundException looking for the key store file
 	 */
 	public HaServerClient(String alarmServiceUri, String keyStoreFile, String keyStorePassword, int connectTimeout, int readTimeout) throws URISyntaxException, FileNotFoundException {
-		this.alarmServiceUri = new URI(alarmServiceUri + "/Alarm_VDev");
+		this.alarmServiceUri = new URI(alarmServiceUri);
 		this.keyStoreFile = ResourceUtils.getFile(keyStoreFile).getAbsolutePath();
 		this.keyStorePassword = keyStorePassword;
 		this.connectTimeout = connectTimeout;
 		this.readTimeout = readTimeout;
+
+		if(alarmServiceUri != null && !alarmServiceUri.equals("")) {
+			createRestTemplate();
+			interfaceOn = true;
+		}
 	}
-	
+
+
+	private void createRestTemplate() {
+		SSLContext sslContext;
+		KeyStore keyStore = null;
+		TrustStrategy acceptingTrustStrategy = (X509Certificate[] chain, String authType) -> true;
+
+		/** Try to load the key store from a file. */
+		try {
+			keyStore = getKeyStore(keyStoreFile, keyStorePassword.toCharArray());
+		}
+		catch (KeyStoreException | CertificateException | NoSuchAlgorithmException | IOException e) {
+			logger.warn("getStore() failed: " + e.getMessage());
+		}
+
+		/** Try to set the SSL context, create the REST template, and PUT the alarm status message. */
+		try {
+			sslContext = SSLContexts.custom()
+					.loadKeyMaterial(keyStore, keyStorePassword.toCharArray())
+					// no trust store
+					.loadTrustMaterial(null, acceptingTrustStrategy)
+					.build();
+
+			restTemplate = getRestTemplateForHTTPS(sslContext);
+		}
+		catch(Exception exception) {
+			/** If any other exception is caught, simply log the message as a warning. */
+			logger.warn(exception.getMessage());
+		}
+	}
 	
 	/**
 	 * Creates an SSL context using the server key store, and sends the status
@@ -90,29 +127,8 @@ public class HaServerClient implements Observer {
 		logger.debug("Alarm service URI: " + alarmServiceUri.toString());
 		logger.debug("Updating HA server with: " + alarmStatus);
 
-		SSLContext sslContext;
-		RestTemplate restTemplate = null;
-		KeyStore keyStore = null;
-		TrustStrategy acceptingTrustStrategy = (X509Certificate[] chain, String authType) -> true;
-		
-		/** Try to load the key store from a file. */
+		/** Try to PUT the alarm status message. */
 		try {
-			keyStore = getKeyStore(keyStoreFile, keyStorePassword.toCharArray());
-		} 
-		catch (KeyStoreException | CertificateException | NoSuchAlgorithmException | IOException e) {
-			logger.warn("getStore() failed: " + e.getMessage());
-		}
-
-		/** Try to set the SSL context, create the REST template, and PUT the alarm status message. */
-		try {
-			sslContext = SSLContexts.custom()
-					.loadKeyMaterial(keyStore, keyStorePassword.toCharArray())
-					// no trust store
-					.loadTrustMaterial(null, acceptingTrustStrategy)
-					.build();
-			
-			restTemplate = getRestTemplateForHTTPS(sslContext);
-
 			restTemplate.put(alarmServiceUri, alarmStatus);
 		}
 		catch(RestClientException rce) {
@@ -132,34 +148,37 @@ public class HaServerClient implements Observer {
 
 		logger.debug("Observer notified...");
 
-		JSONObject jsonObject = (JSONObject)object;
-		logger.debug("object: " + jsonObject.toString());
+		if(interfaceOn) {
 
-		String type = jsonObject.getString("type");
+			JSONObject jsonObject = (JSONObject) object;
+			logger.debug("object: " + jsonObject.toString());
 
-		if(type.equals("key-pad-message")) {
+			String type = jsonObject.getString("type");
+
+			if (type.equals("key-pad-message")) {
 
 			/* Reset the REST interface exists flag, if the timeout has expired. */
-			if (Instant.now().isAfter(nextRestInterfaceRetry)) {
-				haRestInterfaceExists = true;
-			}
+				if (Instant.now().isAfter(nextRestInterfaceRetry)) {
+					haRestInterfaceExists = true;
+				}
 
 			/*
 			 * Update the HA server and any web socket clients.
 			 */
-			if (haRestInterfaceExists) {
+				if (haRestInterfaceExists) {
 				/* If the REST interface exists, try to send a status message. */
-				try {
-					updateHaServer(jsonObject.toString());
-				} catch (RestClientException restClientException) {
+					try {
+						updateHaServer(jsonObject.toString());
+					} catch (RestClientException restClientException) {
 					/* If a REST client exception is caught, disable calling the REST interface,
 					 * and set a re-enable timeout. */
-					logger.warn(restClientException.getMessage());
-					logger.warn("Disabling HA REST interface.");
-					haRestInterfaceExists = false;
+						logger.warn(restClientException.getMessage());
+						logger.warn("Disabling HA REST interface.");
+						haRestInterfaceExists = false;
 
 					/* Set the re-enable timeout to 30 seconds*/
-					nextRestInterfaceRetry = Instant.now().plus(Duration.ofSeconds(30));
+						nextRestInterfaceRetry = Instant.now().plus(Duration.ofSeconds(30));
+					}
 				}
 			}
 		}
